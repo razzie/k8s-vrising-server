@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vrising
+  namespace: vrising
+spec:
+  type: NodePort
+  ports:
+    - port: 9876
+      nodePort: 30001
+      protocol: UDP
+      name: vrising-port-9876
+    - port: 9877
+      nodePort: 30002
+      protocol: UDP
+      name: vrising-port-9877
+  selector:
+    app: vrising
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vrising
+  namespace: vrising
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vrising
+  template:
+    metadata:
+      labels:
+        app: vrising
+    spec:
+      initContainers:
+        - name: vrising-init
+          image: razzquez/steamcmd-wine:latest
+          command:
+            - /scripts/install.sh
+          args:
+            - "1829350"
+          volumeMounts:
+            - mountPath: /app
+              subPath: app
+              name: data
+      containers:
+        - name: vrising
+          image: razzquez/steamcmd-wine:latest
+          ports:
+            - containerPort: 9876
+            - containerPort: 9877
+          command:
+            - /scripts/entrypoint.sh
+          args:
+            - VRisingServer.exe
+            - -persistentDataPath
+            - Z:\\saves
+          resources:
+            requests:
+              memory: 4Gi
+              cpu: "1"
+            limits:
+              memory: 8Gi
+              cpu: "4"
+          volumeMounts:
+            - mountPath: /app
+              subPath: app
+              name: data
+            - mountPath: /saves
+              subPath: saves
+              name: data
+      volumes:
+        - name: data
+          hostPath:
+            path: /vrising
+            type: Directory
